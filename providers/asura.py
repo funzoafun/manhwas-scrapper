@@ -1,11 +1,12 @@
 from util.single_manhwa import Manhwa
 from model.manhwa import ManhwaItem
+from model.chapter import Chapter, Chapters
 import pymongo
 
 
 SCRAPER_URL = 'http://api.webscrapingapi.com/v1'
 
-def getMannhwaChapterDetails(chapterTagList):
+def getMannhwaChapterDetails(chapterTagList, manhwaTitle, provider):
     chapter_list: list = []
 
     for chapterItem in chapterTagList:
@@ -13,8 +14,12 @@ def getMannhwaChapterDetails(chapterTagList):
         chapter_num = a_tag.find('span',{'class':'chapternum'}).text
         chapter_date = a_tag.find('span',{'class':'chapterdate'}).text
         chapter_link = a_tag['href']
-        chapter_list.append({'chapterNumber':chapter_num, 'chapterDate':chapter_date, 'chapterLink': chapter_link})
-    return chapter_list
+        chapter_list.append({'chapterNumber':chapter_num, 'chapterDate':chapter_date})
+    manhwaChapters = Chapters()
+    manhwaChapters.provider = provider
+    manhwaChapters.manhwaTitle = manhwaTitle
+    manhwaChapters.chapters = chapter_list
+    return manhwaChapters
 
 
 def getManhwaDetails(manhwaUrl):
@@ -22,21 +27,28 @@ def getManhwaDetails(manhwaUrl):
     manhwa = Manhwa(manhwaUrl)
     manhwaSoup = manhwa.getManhwaSoup
     # manhwaTitle = manhwaSoup.find('h1', {'itemprop': 'name', 'class': 'entry-title'}).text if manhwaSoup.find('h1', {'itemprop': 'name', 'class': 'entry-title'}) else None
-    manhwa_chapters_tags = manhwaSoup.findAll('div', {'class': 'eph-num'})
-    # manhwaChapters = getMannhwaChapterDetails(manhwa_chapters_tags)
+    manhwa_chapters_tags = manhwaSoup.findAll('div', {'class': 'chbox'})
+
     manhwaItem = ManhwaItem()
     manhwaItem.title = manhwaSoup.find('h1', {'itemprop': 'name', 'class': 'entry-title'}).text if manhwaSoup.find('h1', {'itemprop': 'name', 'class': 'entry-title'}) else None
-    manhwaItem.chapters = getMannhwaChapterDetails(manhwa_chapters_tags)
-    manhwaItem.coverImgUrl = manhwaSoup.find('div',{'class':'thumb'}).find('img',{'itemprop':'image'})['src']
+    # manhwaItem.chapters = getMannhwaChapterDetails(manhwa_chapters_tags)
+    manhwaItem.coverImgUrl = manhwaSoup.find('div',{'class':'thumb'}).find('img',{'itemprop':'image'})['src'] if manhwaSoup.find('div',{'class':'thumb'}).find('img',{'itemprop':'image'}) else None
     manhwaItem.provider = manhwaUrl.split('.')[1].split('.')[0]
     manhwaItem.description = ' '.join(p.text for p in manhwaSoup.select('div.entry-content-single p'))
     manhwaItem.genres = [tag.text for tag in manhwaSoup.find_all('a', {'class':'tag'})]
-    client = pymongo.MongoClient("mongodb+srv://rajpranit1207:rajpranit123@animascluster.4m2s0wm.mongodb.net/test")
-    db = client['manhwas']
-    collection = db['manhwa']
+    manhwaChapters = getMannhwaChapterDetails(manhwa_chapters_tags,manhwaItem.title, manhwaItem.provider )
 
-    insert_result = collection.insert_one(vars(manhwaItem))
-    print(insert_result)
+    try:
+
+        client = pymongo.MongoClient("mongodb+srv://rajpranit1207:rajpranit123@animascluster.4m2s0wm.mongodb.net/test")
+        db = client['manhwas']
+        manhwa_id = db.manhwa.insert_one(vars(manhwaItem)).inserted_id
+        chapter_id = db.chapters.insert_one(manhwaChapters).inserted_id
+        db.manhwa.update_one({"_id": manhwa_id}, {'$push': {'chpaters': chapter_id}})
+    except Exception as e:
+        print(f"Error: {e}")
+    
+
     print(vars(manhwaItem))
 
 

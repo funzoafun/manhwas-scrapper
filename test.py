@@ -1,11 +1,6 @@
-from util.single_manhwa import Manhwa
+from selenium  import webdriver
 
+browser = webdriver.Chrome()
+browser.get('https://www.asurascans.com/manga/0879654290-solo-leveling/')
 
-manhwa = Manhwa('https://www.asurascans.com/manga/1672760368-dr-player/')
-
-
-manhwaSoup = manhwa.getManhwaSoup
-
-manhwaTitle = manhwaSoup.find('h1', {'itemprop': 'name', 'class': 'entry-title'}).text
-print(manhwaTitle)
 

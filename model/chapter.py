@@ -1,10 +1,15 @@
 class Chapter:
     provider: str
-    slug: str
     manhwaTitle: str
-    title: str
     chapterNum: str
     contentList: list
+    content: list
     updatedAt: str
+
+class Chapters:
+    provider: str
+    manhwaTitle: str
+    chapters: list
+
 
 
